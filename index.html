@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>バーコード→QR変換ツール</title>
+<script src="https://unpkg.com/@zxing/library@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+<style>
+body {
+  font-family: system-ui, sans-serif;
+  background: #f8fafc;
+  padding: 1.5rem;
+  text-align: center;
+}
+#camera {
+  width: 320px;
+  height: 240px;
+  background: #000;
+  border-radius: 8px;
+}
+#qrcode {
+  margin-top: 1rem;
+}
+button {
+  margin: 0.5rem;
+  padding: 0.7rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  background: #007bff;
+  color: white;
+  font-size: 1rem;
+}
+#barcodeResult {
+  font-size: 1.1rem;
+  margin-top: 0.5rem;
+  color: #333;
+}
+</style>
+</head>
+<body>
+
+<h2>📦 バーコード → QRコード変換ツール</h2>
+<video id="camera" autoplay muted></video>
+<p id="barcodeResult">バーコードをかざしてください</p>
+
+<div id="qrcode"></div>
+<button id="startBtn">バーコード読取り開始</button>
+<button id="stopBtn">停止</button>
+
+<script>
+const codeReader = new ZXing.BrowserMultiFormatReader();
+const videoElement = document.getElementById('camera');
+const resultElement = document.getElementById('barcodeResult');
+const qrContainer = document.getElementById('qrcode');
+
+async function startBarcodeScanner() {
+  try {
+    const devices = await codeReader.listVideoInputDevices();
+    const selectedDeviceId = devices[0]?.deviceId;
+
+    await codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
+      if (result) {
+        const barcodeText = result.getText();
+        resultElement.textContent = '読取結果：' + barcodeText;
+
+        // QR生成前にクリア
+        qrContainer.innerHTML = '';
+        new QRCode(qrContainer, {
+          text: barcodeText,
+          width: 200,
+          height: 200,
+        });
+      }
+      if (err && !(err instanceof ZXing.NotFoundException)) {
+        console.error(err);
+      }
+    });
+  } catch (e) {
+    console.error(e);
+    resultElement.textContent = 'カメラの起動に失敗しました。権限を確認してください。';
+  }
+}
+
+function stopBarcodeScanner() {
+  codeReader.reset();
+  resultElement.textContent = '停止しました。';
+}
+
+document.getElementById('startBtn').addEventListener('click', startBarcodeScanner);
+document.getElementById('stopBtn').addEventListener('click', stopBarcodeScanner);
+</script>
+
+</body>
+</html>
