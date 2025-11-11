@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>バーコード→QR変換ツール</title>
+<title>バーコード→QR変換ツール（カメラON/OFF対応）</title>
 <script src="https://unpkg.com/@zxing/library@latest"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
 <style>
@@ -18,6 +18,7 @@ body {
   height: 240px;
   background: #000;
   border-radius: 8px;
+  display: none;
 }
 #qrcode {
   margin-top: 1rem;
@@ -31,6 +32,13 @@ button {
   color: white;
   font-size: 1rem;
 }
+input[type="text"] {
+  padding: 0.5rem;
+  width: 250px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+}
 #barcodeResult {
   font-size: 1.1rem;
   margin-top: 0.5rem;
@@ -41,54 +49,95 @@ button {
 <body>
 
 <h2>📦 バーコード → QRコード変換ツール</h2>
-<video id="camera" autoplay muted></video>
-<p id="barcodeResult">バーコードをかざしてください</p>
 
+<!-- カメラエリア -->
+<video id="camera" autoplay muted></video>
+
+<!-- 手入力モード -->
+<div id="manualInputArea">
+  <p>📥 バーコード番号を入力してQRを生成</p>
+  <input id="manualInput" type="text" placeholder="バーコード値を入力">
+  <button id="generateBtn">QR変換</button>
+</div>
+
+<p id="barcodeResult">カメラをONにするとスキャンできます</p>
 <div id="qrcode"></div>
-<button id="startBtn">バーコード読取り開始</button>
-<button id="stopBtn">停止</button>
+
+<!-- ボタン -->
+<button id="cameraOnBtn">📷 カメラON</button>
+<button id="cameraOffBtn">🛑 カメラOFF</button>
 
 <script>
 const codeReader = new ZXing.BrowserMultiFormatReader();
 const videoElement = document.getElementById('camera');
 const resultElement = document.getElementById('barcodeResult');
 const qrContainer = document.getElementById('qrcode');
+const inputField = document.getElementById('manualInput');
+const manualArea = document.getElementById('manualInputArea');
 
-async function startBarcodeScanner() {
+let scanning = false;
+
+async function startCamera() {
   try {
     const devices = await codeReader.listVideoInputDevices();
     const selectedDeviceId = devices[0]?.deviceId;
+
+    // カメラ表示
+    videoElement.style.display = "block";
+    manualArea.style.display = "none";
 
     await codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
       if (result) {
         const barcodeText = result.getText();
         resultElement.textContent = '読取結果：' + barcodeText;
-
-        // QR生成前にクリア
-        qrContainer.innerHTML = '';
-        new QRCode(qrContainer, {
-          text: barcodeText,
-          width: 200,
-          height: 200,
-        });
+        makeQR(barcodeText);
       }
       if (err && !(err instanceof ZXing.NotFoundException)) {
         console.error(err);
       }
     });
+    scanning = true;
   } catch (e) {
     console.error(e);
     resultElement.textContent = 'カメラの起動に失敗しました。権限を確認してください。';
   }
 }
 
-function stopBarcodeScanner() {
+function stopCamera() {
   codeReader.reset();
-  resultElement.textContent = '停止しました。';
+  scanning = false;
+  videoElement.style.display = "none";
+  manualArea.style.display = "block";
+  resultElement.textContent = 'カメラ停止中：手入力でQR生成可能です。';
 }
 
-document.getElementById('startBtn').addEventListener('click', startBarcodeScanner);
-document.getElementById('stopBtn').addEventListener('click', stopBarcodeScanner);
+// QR生成共通関数
+function makeQR(text) {
+  qrContainer.innerHTML = '';
+  new QRCode(qrContainer, {
+    text: text,
+    width: 200,
+    height: 200,
+  });
+}
+
+// 手入力変換
+document.getElementById('generateBtn').addEventListener('click', () => {
+  const val = inputField.value.trim();
+  if (val === '') {
+    alert('バーコード値を入力してください');
+    return;
+  }
+  resultElement.textContent = '入力結果：' + val;
+  makeQR(val);
+});
+
+// カメラON/OFF切替ボタン
+document.getElementById('cameraOnBtn').addEventListener('click', startCamera);
+document.getElementById('cameraOffBtn').addEventListener('click', stopCamera);
+
+// 初期はカメラOFF
+stopCamera();
 </script>
 
 </body>
